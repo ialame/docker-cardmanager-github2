@@ -36,7 +36,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=ia
       - SPRING_DATASOURCE_PASSWORD=foufafou
       - SPRING_PROFILES_ACTIVE=docker
-      - PAINTER_IMAGE_STORAGE_PATH=/app/images      - SPRING_JPA_HIBERNATE_DDL_AUTO=validate  # Ne pas modifier le schéma
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=validate  # Ne pas modifier le schéma
     ports:
       - "8081:8081"
     volumes:
@@ -60,7 +60,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=ia
       - SPRING_DATASOURCE_PASSWORD=foufafou
       - SPRING_PROFILES_ACTIVE=docker
-      - PAINTER_IMAGE_STORAGE_PATH=/app/images      - PAINTER_SERVICE_URL=http://painter:8081
+      - PAINTER_SERVICE_URL=http://painter:8081
       # DÉSACTIVER Liquibase car les données sont déjà là
       - SPRING_LIQUIBASE_ENABLED=false
       - SPRING_JPA_HIBERNATE_DDL_AUTO=validate  # Valider seulement, ne pas modifier
