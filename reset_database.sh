@@ -1,3 +1,17 @@
+#!/bin/bash
+echo "🗄️ Réinitialisation complète de la base de données..."
+
+# 1. Arrêter tous les services
+echo "🛑 Arrêt de tous les services..."
+docker-compose down
+
+# 2. Supprimer SEULEMENT le volume de la base de données (garder les images)
+echo "🧹 Suppression du volume de base de données..."
+docker volume rm docker-cardmanager-github_cardmanager_db_data 2>/dev/null || echo "Volume déjà supprimé"
+
+# 3. Recréer une configuration compatible
+echo "📝 Configuration avec Hibernate DDL-AUTO au lieu de Liquibase..."
+cat > docker-compose.yml << 'EOF'
 services:
   mariadb-standalone:
     image: mariadb:11.2
@@ -92,3 +106,38 @@ volumes:
 networks:
   cardmanager-network:
     driver: bridge
+EOF
+
+# 4. Redémarrer avec une base vide
+echo "🚀 Redémarrage avec une base de données fraîche..."
+docker-compose up -d
+
+# 5. Attendre le démarrage
+echo "⏳ Attente du démarrage complet (60 secondes)..."
+sleep 60
+
+# 6. Vérifier l'état
+echo "📊 État des services :"
+docker-compose ps
+
+echo ""
+echo "🔍 Test de connectivité :"
+echo "• MariaDB: $(docker-compose exec mariadb-standalone mysqladmin ping -h localhost --silent 2>/dev/null && echo "✅ OK" || echo "❌ KO")"
+echo "• Painter: $(curl -s -I http://localhost:8081 | grep -q "HTTP/1.1" && echo "✅ OK" || echo "❌ KO")"
+echo "• GestionCarte: $(curl -s -I http://localhost:8080 | grep -q "HTTP/1.1" && echo "✅ OK" || echo "❌ KO")"
+echo "• Nginx: $(curl -s -I http://localhost:8082 | grep -q "HTTP/1.1" && echo "✅ OK" || echo "❌ KO")"
+
+echo ""
+echo "📋 Logs récents de GestionCarte :"
+docker-compose logs --tail=15 gestioncarte
+
+echo ""
+echo "🎯 URLs d'accès :"
+echo "   • Application principale: http://localhost:8080"
+echo "   • Service Painter: http://localhost:8081"
+echo "   • Serveur d'images: http://localhost:8082/images/"
+echo "   • Base MariaDB: localhost:3307 (ia/foufafou)"
+
+echo ""
+echo "📝 Cette configuration utilise Hibernate DDL-AUTO au lieu de Liquibase"
+echo "   pour éviter les conflits de migration de schéma."
