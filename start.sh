@@ -1,78 +1,51 @@
 #!/bin/bash
-echo "🚀 Démarrage de CardManager..."
+set -e
 
-# Vérifier que Docker est disponible
+echo "🚀 Démarrage de CardManager..."
+echo "==============================="
+
+# Vérifier Docker
 if ! command -v docker &> /dev/null; then
-    echo "❌ Docker n'est pas installé ou pas disponible"
-    echo "💡 Installez Docker Desktop depuis https://www.docker.com/products/docker-desktop"
+    echo "❌ Docker n'est pas installé"
+    echo "💡 Installez Docker Desktop depuis https://www.docker.com/"
     exit 1
 fi
 
-# Vérifier si les images existent
-IMAGES_EXIST=true
-for image in docker-cardmanager-mason docker-cardmanager-painter docker-cardmanager-gestioncarte; do
-    if ! docker image inspect "${image}:latest" >/dev/null 2>&1; then
-        IMAGES_EXIST=false
-        break
-    fi
-done
-
-# Si les images n'existent pas, les construire
-if [ "$IMAGES_EXIST" = false ]; then
-    echo "🏗️ Première installation détectée - Construction des images..."
-    echo "⏳ Cela peut prendre 10-15 minutes..."
-    echo ""
-
-    # Lancer le build complet
-    if [ -f "build.sh" ]; then
-        chmod +x build.sh
-        ./build.sh
-    else
-        echo "📦 Construction avec Docker Compose..."
-
-        # Utiliser docker compose ou docker-compose selon la version
-        if command -v docker-compose &> /dev/null; then
-            docker-compose build --no-cache
-        else
-            docker compose build --no-cache
-        fi
-
-        echo "🚀 Démarrage des services..."
-        if command -v docker-compose &> /dev/null; then
-            docker-compose up -d
-        else
-            docker compose up -d
-        fi
-    fi
-else
-    echo "📦 Démarrage des services existants..."
-
-    # Démarrer les services
-    if command -v docker-compose &> /dev/null; then
-        docker-compose up -d
-    else
-        docker compose up -d
-    fi
+# Vérifier Docker Compose
+if ! docker compose version &> /dev/null && ! docker-compose --version &> /dev/null; then
+    echo "❌ Docker Compose n'est pas disponible"
+    exit 1
 fi
 
-# Attendre le démarrage
+echo "✅ Docker détecté"
+
+# Créer les volumes s'ils n'existent pas
+echo "📦 Préparation des volumes..."
+docker volume create cardmanager_db_data 2>/dev/null || true
+docker volume create cardmanager_images 2>/dev/null || true
+
+# Démarrer les services
+echo "🔄 Démarrage des services..."
+docker-compose up -d
+
+# Attendre que les services soient prêts
 echo "⏳ Attente du démarrage des services..."
-sleep 15
+sleep 10
 
 # Vérifier l'état
+echo ""
 echo "📊 État des services :"
-if command -v docker-compose &> /dev/null; then
-    docker-compose ps
-else
-    docker compose ps
-fi
+docker-compose ps
 
 echo ""
-echo "✅ CardManager démarré !"
+echo "🎉 CardManager démarré avec succès !"
 echo ""
-echo "📡 URLs d'accès :"
-echo "   - Application : http://localhost:8080"
-echo "   - Images : http://localhost:8082/images/"
+echo "📱 URLs d'accès :"
+echo "   • Application principale : http://localhost:8080"
+echo "   • Galerie d'images       : http://localhost:8082/images/"
+echo "   • API Painter            : http://localhost:8081"
 echo ""
-echo "🛑 Pour arrêter : ./stop.sh"
-echo "📋 Pour voir les logs : docker-compose logs -f"
+echo "🔍 Commandes utiles :"
+echo "   • Voir les logs : docker-compose logs -f"
+echo "   • Arrêter       : ./stop.sh"
+echo "   • Diagnostic    : ./diagnostic.sh"

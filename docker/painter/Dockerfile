@@ -1,33 +1,43 @@
-FROM maven:3.9.6-eclipse-temurin-21 AS builder
+FROM eclipse-temurin:21-jdk-alpine AS builder
 
-WORKDIR /usr/src/app
+# Installer git et maven
+RUN apk add --no-cache git maven
 
-# Copier et installer le POM parent cardmanager avec toutes les dépendances
-COPY docker/cardmanager-parent.xml cardmanager-pom.xml
-RUN mvn install:install-file \
-    -Dfile=cardmanager-pom.xml \
-    -DgroupId=com.pcagrade \
-    -DartifactId=cardmanager \
-    -Dversion=1.0.0-SNAPSHOT \
-    -Dpackaging=pom
-
-# Cloner et build Mason (dépendance de Painter)
-RUN git clone --depth 1 --branch main https://github.com/ialame/mason.git mason
-WORKDIR /usr/src/app/mason
+# Cloner Mason d'abord (dépendance)
+WORKDIR /build
+RUN git clone https://github.com/ialame/mason.git mason
+WORKDIR /build/mason
+RUN git checkout main
 RUN mvn clean install -DskipTests
 
-# Cloner Painter
-WORKDIR /usr/src/app
-RUN git clone --depth 1 --branch main https://github.com/ialame/painter.git painter
+# Cloner et builder Painter
+WORKDIR /build
+RUN git clone https://github.com/ialame/painter.git painter
+WORKDIR /build/painter
+RUN git checkout main
 
-# Build Painter avec toutes les dépendances Mason disponibles
-WORKDIR /usr/src/app/painter
+# Builder avec les endpoints API corrects
 RUN mvn clean install -DskipTests
 
 # Image finale
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-COPY --from=builder /usr/src/app/painter/painter/target/painter-*.jar app.jar
+
+# Copier le JAR principal de Painter
+COPY --from=builder /build/painter/painter-application/target/*.jar app.jar
+
+# Créer le dossier pour les images
 RUN mkdir -p /app/images
+
+# Configuration JVM
+ENV JAVA_OPTS="-Xms512m -Xmx1024m -Djava.security.egd=file:/dev/./urandom"
+
+# Port
 EXPOSE 8081
-CMD ["java", "-jar", "app.jar"]
+
+# Health check corrigé pour le bon endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+  CMD wget -qO- http://localhost:8081/actuator/health || exit 1
+
+# Démarrage
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

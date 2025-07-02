@@ -1,10 +1,13 @@
 @echo off
 echo 🛑 Arrêt de CardManager...
+echo =========================
 
 docker-compose down
 
-echo ✅ CardManager arrêté.
+echo.
+echo ✅ CardManager arrêté
 echo.
 echo 💡 Pour redémarrer : start.bat
-echo 🗑️ Pour supprimer les données : docker-compose down --volumes
+echo 🗑️ Pour tout supprimer : docker-compose down --volumes
+echo.
 pause
